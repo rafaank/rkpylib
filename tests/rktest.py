@@ -20,7 +20,7 @@ def hello(globals, request, response):
     
     resp_json = dict()
     resp_json['code'] = 200
-    resp_json['data'] = "Hi There!!!"
+    resp_json['data'] = "Hi There!!!  This RKHttp..."
     response_text = json.dumps(resp_json) 
     response.wfile.write(response_text.encode("utf-8"))
     
