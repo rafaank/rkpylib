@@ -1,7 +1,7 @@
 from rkpylib.rkhttp import *
 from rktest import *
+from test import *
 
-import traceback
 import gc
 import tracemalloc
 import pprint
@@ -9,6 +9,7 @@ import pprint
 
 if __name__ == '__main__':    
 
+    ''' Function to get a free datasource object from pool ''' 
     def dspool_func(pool, pool_lock):
         for idx, ds in enumerate(pool):
             if pool_lock[idx].acquire(False):
@@ -20,32 +21,34 @@ if __name__ == '__main__':
                 continue
         return None
 
+
     tracemalloc.start()
     try:
         #gc.set_debug(gc.DEBUG_LEAK)
         ipaddr = socket.gethostname()
         port = 8282
-        RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
-        g = RKHttpGlobals(debug_mode=False)
 
+        RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
+
+        g = RKHttpGlobals(debug_mode=False)
         g.register('counter', 0)
     
+        ''' Creating pool of Datasource and locks to enable thread-safe processing '''
         dspool = list()
         dspool_lock = list()
-        
         for i in range(5):
             ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
             lck = Lock()
             dspool.append(ds)
             dspool_lock.append(lck)
             
+        ''' Adding datasource and lock to globally accessing variables list '''
         g.register('dspool', dspool)
         g.register('dspool_lock', dspool_lock)
         g.register('dspool_func', dspool_func)    
         g.register('total_requests', 0)        
 
-
-        server = RKHTTPServer((ipaddr, port), RKHandlerClassFactory(g))
+        server = RKHttp.server((ipaddr, port), g)
         print (f'listening on address {ipaddr} and port {port}')
         server.serve_forever()
     finally:

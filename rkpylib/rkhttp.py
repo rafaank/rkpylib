@@ -1,6 +1,7 @@
 import errno
 import socket
 import time
+import traceback
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib import parse
@@ -17,9 +18,6 @@ from .rklogger import RKLogger
 
 global server
 
-#ok_response_text = 'HTTP/1.0 200 OK\n\n'
-#nok_response_text = 'HTTP/1.0 404 NotFound\n\n'
-
 
 class RKHttpGlobals():
         
@@ -28,12 +26,7 @@ class RKHttpGlobals():
         self._variables = dict()
         self._debug_mode = debug_mode
         self._lock = Lock()
-        '''
-        try:
-            rkhttp_globals.__init_globals__(self)
-        except Exception as e:
-            RKLogger.exception(str(e))
-        '''
+
     
     def __del__(self):
         if self._lock.acquire(True, 10):
@@ -48,6 +41,7 @@ class RKHttpGlobals():
         del self._variables
         del self._lock
         print("Destroying Globals")
+    
     
     def register(self, var_name, var_value) : #, reload_interval = None, reload_func = None):
         RKLogger.debug(f'Register requested for {var_name}')
@@ -129,27 +123,9 @@ class RKHttpGlobals():
                 self._lock.release()
         else:
             return False
+  
 
-
-class RKHttp():
-    _routes = dict()
-    
-    @classmethod    
-    def route(cls, route_str):
-        def decorator(f):
-            cls._routes[route_str] = f
-            return f
-        
-        return decorator
-    
-    
-    @classmethod
-    def _route_function(cls, path):
-        rfunc = cls._routes.get(path)
-        return rfunc
-
-
-def RKHandlerClassFactory(globals):
+def RKHttpHandlerClassFactory(globals):
     class RKHTTPRequestHandler(BaseHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             self.globals = globals
@@ -161,7 +137,6 @@ def RKHandlerClassFactory(globals):
             del self.request
             del self.response            
             del self.globals
-            # print("Destroying RKRequestHandler")
             # super(RKHTTPRequestHandler, self).__del__()
                                                       
         def do_preprocess(self):
@@ -177,40 +152,10 @@ def RKHandlerClassFactory(globals):
             self.response = RKDict()
             self.response.wfile = self.wfile
             self.response.send_response = self.send_response
+            self.response.send_error = self.send_error
             self.response.send_header = self.send_header
             self.response.end_headers = self.end_headers
             
-            '''
-            paths = self.request.parsed_path.path.split('/')
-            
-            if len(paths) >= 3:
-                self.module_name = paths[1]
-                self.function_name = paths[2]
-                try:
-                    #importlib.invalidate_caches()
-                    # module = importlib.util.find_spec(self.module_name)
-                    module = __import__(self.module_name)
-                    if self.globals._debug_mode:
-                        importlib.reload(module)
-                        
-                    self.log_message(f'Successfully Loaded module {self.module_name}')
-                    self.function = getattr(module, self.function_name)
-                    self.log_message(f'Successfully Loaded function {self.function_name}')
-                except ModuleNotFoundError as mnfe:
-                    self.send_error(400, str(mnfe))
-                    return False
-                except AttributeError as ae:
-                    self.send_error(400, str(ae))
-                except Exception as e:
-                    self.send_error(500, str(e), traceback.format_exc())
-                    return False
-    
-            else:
-                self.function = self.handle_default
-                self.function_name = 'Default'
-            
-            paths = None
-            '''
             self.function = RKHttp._route_function(self.request.parsed_path.path)
             if not self.function:
                 self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
@@ -222,6 +167,11 @@ def RKHandlerClassFactory(globals):
         def do_GET(self):
             
             if self.do_preprocess():
+                '''
+                RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                self.function(self.globals, self.request, self.response)
+                RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
+                '''                
                 try:
                     RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
                     self.function(self.globals, self.request, self.response)
@@ -231,9 +181,9 @@ def RKHandlerClassFactory(globals):
                 except Exception as e:
                     try:
                         self.send_error(500, str(e), traceback.format_exc())
-                    except:
-                        pass
-    
+                    except Exception as e:
+                        RKLogger.exception(str(e))
+
     
         def do_POST(self):
             
@@ -246,17 +196,17 @@ def RKHandlerClassFactory(globals):
                     return
                 
                 try:
-                    RKLogger.debug(f'Executing function {self.self.request.parsed_path.path}')
-                    self.function(self.request, self.response)
-                    RKLogger.debug(f'Completed function {self.self.request.parsed_path.path}')
+                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                    self.function(self.globals, self.request, self.response)
+                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
                 except BrokenPipeError as bpe:
-                    RKLogger.exception(str(bpe))                    
+                    RKLogger.exception(str(bpe))
                 except Exception as e:
                     try:
                         self.send_error(500, str(e), traceback.format_exc())
-                    except:
-                        pass
-    
+                    except Exception as e:
+                        RKLogger.exception(str(e))
+   
     
         def log_message(self, format, *args):
             RKLogger.debug(format, *args)
@@ -282,4 +232,28 @@ def RKHandlerClassFactory(globals):
 class RKHTTPServer(ThreadingMixIn, HTTPServer):
     pass
     
+
+
+class RKHttp():
+    _routes = dict()
+    
+    @classmethod    
+    def route(cls, route_str):
+        def decorator(f):
+            cls._routes[route_str] = f
+            return f
+        
+        return decorator
+    
+    
+    @classmethod
+    def _route_function(cls, path):
+        rfunc = cls._routes.get(path)
+        return rfunc
+
+    
+    @classmethod
+    def server(cls, ip_port, globals):
+        s = RKHTTPServer(ip_port, RKHttpHandlerClassFactory(globals))
+        return s
 
