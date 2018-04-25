@@ -1,2 +1,7 @@
+Installation on Linux
 $ cd <rkpylib-folder>
 $ sudo python3 setup.py install
+
+
+To Uninstall
+$ sudo pip3 uninstall rkpylib
