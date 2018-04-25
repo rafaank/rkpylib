@@ -14,14 +14,14 @@ class RKLogger:
         fh.setLevel(log_level)        
         #log_format = '%(asctime)-15s - %(name)s - %(clientip)s - %(user)-8s - %(levelname)-8s - %(message)s'
         formatter = logging.Formatter(log_format)
-        fh.setFormatter(formatter)
-        
-		cls.logger.addHandler(fh)
-		if log_level == logging.DEBUG:		
-			ch = logging.StreamHandler()
-			ch.setLevel(log_level)
-	        ch.setFormatter(formatter)
-			cls.logger.addHandler(ch)
+        fh.setFormatter(formatter)        
+        cls.logger.addHandler(fh)
+
+        if log_level == logging.DEBUG:		
+            ch = logging.StreamHandler()
+            ch.setLevel(log_level)
+            ch.setFormatter(formatter)
+            cls.logger.addHandler(ch)
 
 
     @classmethod
