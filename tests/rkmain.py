@@ -1,5 +1,6 @@
 from rkpylib.rkhttp import RKHttpGlobals, RKHttp
 from rkpylib.rkdatasource import RKDataSource
+from rkpylib.rkutils import trace_memory_leaks
 from rktest import *
 from test import *
 

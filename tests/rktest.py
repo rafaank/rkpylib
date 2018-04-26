@@ -28,23 +28,17 @@ def pool_example(globals, request, response):
     dspool = globals.get("dspool")
     dspool_func = globals.get("dspool_func")
 
-    if not dspool or not dspool_func:
-        print("Creating new DataSource")
+    ds = dspool_func(dspool) if dspool or dspool_func() else None
+
+    if not ds:
+        print("All DataSource inuse - Creating new DataSource")
         ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
-        data = ds.collection('restaurants').find({'cuisine': 'American'})            
-
+        data = ds.db['restaurants'].find({'cuisine': 'American'}).limit(1,5)
+        ds.client.close()
     else:
-        ds = dspool_func(dspool)
-
-        if not ds:
-            print("All DataSource inuse - Creating new DataSource")
-            ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
-            data = ds.db['restaurants'].find({'cuisine': 'American'}).limit(1,5)
-            ds.client.close()
-        else:
-            print("Data Source Found")
-            data = ds.db.restaurants.find_one({'cuisine': 'American'})
-            ds.lock.release()
+        print("Data Source Found")
+        data = ds.db.restaurants.find_one({'cuisine': 'American'})
+        ds.lock.release()
 
 
     if data:
