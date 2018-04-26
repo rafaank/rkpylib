@@ -1,4 +1,5 @@
-from rkpylib.rkhttp import *
+from rkpylib.rkhttp import RKHttpGlobals, RKHttp
+from rkpylib.rkdatasource import RKDataSource
 from rktest import *
 from test import *
 
@@ -10,13 +11,10 @@ import pprint
 if __name__ == '__main__':    
 
     ''' Function to get a free datasource object from pool ''' 
-    def dspool_func(pool, pool_lock):
+    def dspool_func(pool):
         for idx, ds in enumerate(pool):
-            if pool_lock[idx].acquire(False):
-                ds_obj = dict()
-                ds_obj['lock'] = pool_lock[idx]
-                ds_obj['ds'] = ds
-                return ds_obj
+            if ds.lock.acquire(False):
+                return ds
             else:
                 continue
         return None
@@ -35,18 +33,14 @@ if __name__ == '__main__':
     
         ''' Creating pool of Datasource and locks to enable thread-safe processing '''
         dspool = list()
-        dspool_lock = list()
         for i in range(5):
             ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
-            lck = Lock()
             dspool.append(ds)
-            dspool_lock.append(lck)
             
         ''' Adding datasource and lock to globally accessing variables list '''
         g.register('dspool', dspool)
-        g.register('dspool_lock', dspool_lock)
         g.register('dspool_func', dspool_func)    
-        g.register('total_requests', 0)        
+        g.register('total_requests', 0)
 
         server = RKHttp.server((ipaddr, port), g)
         print (f'listening on address {ipaddr} and port {port}')
@@ -64,7 +58,6 @@ if __name__ == '__main__':
         trace_memory_leaks()
         #traceback_memory_leaks()
 
-            
                 
 
                 
