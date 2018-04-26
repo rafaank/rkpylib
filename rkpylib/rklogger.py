@@ -35,25 +35,30 @@ class RKLogger:
     @classmethod
     def info(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.info(msg, *args, **kwargs)
         
     @classmethod
     def warning(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.warning(msg, *args, **kwargs)
 
     @classmethod
     def error(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.error(msg, *args, **kwargs)
 
     @classmethod
     def critical(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.critical(msg, *args, **kwargs)
 
 
     @classmethod
     def exception(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.exception(msg, *args, **kwargs)

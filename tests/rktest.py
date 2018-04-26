@@ -33,7 +33,7 @@ def pool_example(globals, request, response):
     if not ds:
         print("All DataSource inuse - Creating new DataSource")
         ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
-        data = ds.db['restaurants'].find({'cuisine': 'American'}).limit(1,5)
+        data = ds.db['restaurants'].find({'cuisine': 'American'}).skip(1).limit(5)
         ds.client.close()
     else:
         print("Data Source Found")
