@@ -2,13 +2,15 @@ import logging
 
 class RKLogger:
     logger = None
+    extra = None
     DEBUG = logging.DEBUG
     ERROR = logging.ERROR
     
     @classmethod
-    def initialize(cls, log_name, file_name, log_level, log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'):
+    def initialize(cls, log_name, file_name, log_level, log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s', extra = None):
         cls.logger = logging.getLogger(log_name)
         cls.logger.setLevel(log_level)
+        cls.extra = extra
         
         fh = logging.FileHandler(file_name)
         fh.setLevel(log_level)        
@@ -27,6 +29,7 @@ class RKLogger:
     @classmethod
     def debug(cls, msg, *args, **kwargs):
         if cls.logger is not None:
+            kwargs['extra'] = cls.extra
             cls.logger.debug(msg, *args, **kwargs)
         
     @classmethod
