@@ -1,5 +1,7 @@
 import errno
+import importlib
 import socket
+import sys
 import time
 import traceback
 
@@ -7,6 +9,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib import parse
 from socketserver import ThreadingMixIn
 from threading import Thread, Lock
+
 
 from .rkutils import *
 from .rklogger import RKLogger
@@ -19,9 +22,11 @@ from .rklogger import RKLogger
 global server
 
 
-class RKHttpGlobals():
+class RKHTTPGlobals():
         
     def __init__(self, debug_mode = True):
+        "Create a new instance of RKHTTPGlobals object that will be used to bind with RKHTTPServer instance"
+
         self._nof_requests = 0
         self._variables = dict()
         self._debug_mode = debug_mode
@@ -29,6 +34,8 @@ class RKHttpGlobals():
 
     
     def __del__(self):
+        "Destructor to destroy the RKHTTPGlobals object instance and all child objects"
+ 
         if self._lock.acquire(True, 10):
             try:
                 for name, value in self._variables.items():
@@ -43,7 +50,9 @@ class RKHttpGlobals():
         print("Destroying Globals")
     
     
-    def register(self, var_name, var_value) : #, reload_interval = None, reload_func = None):
+    def register(self, var_name, var_value):
+        "Register a new global variable"
+
         RKLogger.debug(f'Register requested for {var_name}')
         if self._lock.acquire(True, 1):
             try:
@@ -67,6 +76,8 @@ class RKHttpGlobals():
     
 
     def get(self, var_name):
+        "Get value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None"
+
         RKLogger.debug(f'get requested for {var_name}')        
         if self._lock.acquire(True, 1):
             try:
@@ -84,6 +95,8 @@ class RKHttpGlobals():
 
     
     def set(self, var_name, var_value):
+        "Set value of a registered global variable, return True if variable value is set else returns False if the variable does not exists or if failed to set the value"
+
         RKLogger.debug(f'set requested for {var_name}')
         if self._lock.acquire(True, 1):
             try:
@@ -105,6 +118,8 @@ class RKHttpGlobals():
 
 
     def inc(self, var_name, inc_val = 1):
+        "Increments a registered variables value by <inc_val>, returns True if value is incremented sucessfully else returns False if failed to set the value"
+        
         RKLogger.debug(f'inc requested for {var_name}')        
         if self._lock.acquire(True, 1):
             try:
@@ -125,21 +140,27 @@ class RKHttpGlobals():
             return False
   
 
-def RKHttpHandlerClassFactory(globals):
+def RKHTTPHandlerClassFactory(globals):
+    "Class factory to customize the initialization of RKHTTPRequestHandler object with additional global parameter"
     class RKHTTPRequestHandler(BaseHTTPRequestHandler):
+        "Class RKHTTPRequestHandler derived from BaseHTTPRequestHandler, a subclass to handle all HTTP requests"
+        
         def __init__(self, *args, **kwargs):
+            "Constructor of RKHTTPRequestHandler, initializes the handler and binds the HTTPGlobals object to the handler"
             self.globals = globals
             self.globals._nof_requests += 1
             super(RKHTTPRequestHandler, self).__init__(*args, **kwargs)
       
       
         def __del__(self):
+            "Destructor for the RKHTTPRequestHandler object"
             del self.request
             del self.response            
             del self.globals
             # super(RKHTTPRequestHandler, self).__del__()
                                                       
         def do_preprocess(self):
+            "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
             
             self.request = RKDict()
             self.request.path = self.path
@@ -156,15 +177,19 @@ def RKHttpHandlerClassFactory(globals):
             self.response.send_header = self.send_header
             self.response.end_headers = self.end_headers
             
-            self.function = RKHttp._route_function(self.request.parsed_path.path)
+            self.function = RKHTTP._route_function(self.request.parsed_path.path)
             if not self.function:
                 self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
                 return False
-            
+            elif self.globals._debug_mode and self.function.__module__ != '__main__':
+                mod = sys.modules[self.function.__module__]
+                importlib.reload(mod)
+                
             return True
     
             
         def do_GET(self):
+            "GET request handler, calls the route_path attached function"
             
             if self.do_preprocess():
                 '''
@@ -186,6 +211,7 @@ def RKHttpHandlerClassFactory(globals):
 
     
         def do_POST(self):
+            "GET request handler, initalizes the post data and makes it available as a request variable. Later calls the route_path attached function"
             
             if self.do_preprocess(): 
                 try:
@@ -209,22 +235,26 @@ def RKHttpHandlerClassFactory(globals):
    
     
         def log_message(self, format, *args):
+            "Override to the default log_message to write all logs to RKLogger"
             RKLogger.debug(format, *args)
     
         
         def log_error(self, format, *args):
+            "Override to the default log_message to write all logs to RKLogger"
             RKLogger.exception(format, *args)
     
     
         def log_response_text(self, format, *args):
+            "Override to the default log_message to write all logs to RKLogger"
             RKLogger.debug(format, *args)
     
     
         def handle_default(self, request, response):
+            "Function to handle all default treated requests, will be deprecated in future"
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain; charset=utf-8')            
             self.end_headers()
-            self.wfile.write('RKHttp is active...'.encode('utf-8'))                        
+            self.wfile.write('RKHTTP is active...'.encode('utf-8'))                        
                                
     return RKHTTPRequestHandler
 
@@ -234,7 +264,8 @@ class RKHTTPServer(ThreadingMixIn, HTTPServer):
     
 
 
-class RKHttp():
+class RKHTTP():
+    "Wrapper class to initialize a RKHTTPServer instance.  Also manages all route_paths and route_functions"
     _routes = dict()
     
     @classmethod    
@@ -254,6 +285,6 @@ class RKHttp():
     
     @classmethod
     def server(cls, ip_port, globals):
-        s = RKHTTPServer(ip_port, RKHttpHandlerClassFactory(globals))
+        s = RKHTTPServer(ip_port, RKHTTPHandlerClassFactory(globals))
         return s
 

@@ -13,6 +13,7 @@ class ThreadStatus(Enum):
 MAX_JOBS_PER_THREAD = 10
 
 class RKThread(threading.Thread):
+    "Thread-Pool Runner thread"
     def __init__(self, manager, thread_id, queue, queue_lock, on_run, on_complete, on_error):
         threading.Thread.__init__(self)
         self.manager = manager
@@ -66,7 +67,7 @@ class RKThread(threading.Thread):
 
 
 class RKThreadManager:
-    
+    "Thread-Pool Manager"
     def __init__(self, max_threads, on_run, on_complete, on_error):        
 
         self._max_threads = max_threads

@@ -7,11 +7,11 @@ import random
 from bson import json_util
 
 from rkpylib.rkdatasource import RKDataSource
-from rkpylib.rkhttp import RKHttp
+from rkpylib.rkhttp import RKHTTP
 
 import pymongo    
     
-@RKHttp.route('/pool')
+@RKHTTP.route('/pool')
 def pool_example(globals, request, response):
     #ds = RKDataSource(server='13.251.32.176', port=27017, database='testgl')
     #ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
@@ -24,6 +24,7 @@ def pool_example(globals, request, response):
     globals.set('total_requests',  total_requests)
 
     resp_json['total_requests'] = total_requests                            
+    resp_json['new'] = "new"
     
     dspool = globals.get("dspool")
     dspool_func = globals.get("dspool_func")
@@ -55,7 +56,7 @@ def pool_example(globals, request, response):
     response.wfile.write(response_text.encode("utf-8"))
 
     
-@RKHttp.route('/table')
+@RKHTTP.route('/table')
 def table_example(globals, request, response):
 
     def date_range(start, end):

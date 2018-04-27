@@ -1,4 +1,4 @@
-from rkpylib.rkhttp import RKHttpGlobals, RKHttp
+from rkpylib.rkhttp import RKHTTPGlobals, RKHTTP
 from rkpylib.rkdatasource import RKDataSource
 from rkpylib.rkutils import trace_memory_leaks
 from rktest import *
@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
         RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
 
-        g = RKHttpGlobals(debug_mode=False)
+        g = RKHTTPGlobals(debug_mode=True)
         g.register('counter', 0)
     
         ''' Creating pool of Datasource and locks to enable thread-safe processing '''
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         g.register('dspool_func', dspool_func)    
         g.register('total_requests', 0)
 
-        server = RKHttp.server((ipaddr, port), g)
+        server = RKHTTP.server((ipaddr, port), g)
         print (f'listening on address {ipaddr} and port {port}')
         server.serve_forever()
     finally:

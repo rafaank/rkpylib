@@ -2,13 +2,13 @@ import os
 import sys
 import json
 import socket
-from rkpylib.rkhttp import RKHttp, RKHttpGlobals
+from rkpylib.rkhttp import RKHTTP, RKHTTPGlobals
 from rkpylib.rklogger import RKLogger
 
-ok_response_text = 'HTTP/1.0 200 OK\n\n'
+ok_response_text = 'HTTP/1.1 200 OK\n\n'
 
 
-@RKHttp.route('/hello')
+@RKHTTP.route('/hello')
 def hello(globals, request, response):
     response.send_response(200)
     response.send_header('Content-Type', 'text/html')            
@@ -17,7 +17,7 @@ def hello(globals, request, response):
     
     
     
-@RKHttp.route('/sample')
+@RKHTTP.route('/sample')
 def sample(globals, request, response):    
     '''
     globals.register(self, var_name, var_value, reload_interval = None, reload_func = None): Registers a new variable in the global scope, this variable is accessible and shares the same value across all threads within the RKHttp scope.  reload_interval is the number of seconds after which a reload needs to be trigged and reload_func is the reload action that gets trigged.  reload_func is expected to return a value that is updated against the variable at every reload_interval.  This can majorly be used to synchronize the global variable data at certain time intervals.   If a variable does not need to be reloaded, its reload_interval must be passed as None (default).  If either reload_interval or reload_func is passed as None the variable is not reloaded.
@@ -77,10 +77,10 @@ if __name__ == '__main__':
     
     RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
     
-    g = RKHttpGlobals(debug_mode=False)
+    g = RKHTTPGlobals(debug_mode=True)
     g.register('counter', 0)
     
-    server = RKHttp.server((ipaddr, port), g)
+    server = RKHTTP.server((ipaddr, port), g)
     print (f'listening on address {ipaddr} and port {port}')
     server.serve_forever()
     
