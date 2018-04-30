@@ -24,12 +24,11 @@ global server
 
 class RKHTTPGlobals():
         
-    def __init__(self, debug_mode = True):
+    def __init__(self):        
         "Create a new instance of RKHTTPGlobals object that will be used to bind with RKHTTPServer instance"
 
         self._nof_requests = 0
         self._variables = dict()
-        self._debug_mode = debug_mode
         self._lock = Lock()
 
     
@@ -181,9 +180,6 @@ def RKHTTPHandlerClassFactory(globals):
             if not self.function:
                 self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
                 return False
-            elif self.globals._debug_mode and self.function.__module__ != '__main__':
-                mod = sys.modules[self.function.__module__]
-                importlib.reload(mod)
                 
             return True
     
