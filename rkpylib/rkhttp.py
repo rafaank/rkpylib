@@ -58,9 +58,6 @@ class RKHTTPGlobals():
                 if var_name in self._variables:
                     # Variable already exists
                     return False
-                elif var_value is None:
-                    # Variable value cannot be None
-                    return False
                 else:
                     self._variables[var_name] = var_value
                     return True
@@ -73,6 +70,22 @@ class RKHTTPGlobals():
             # failed to get lock
             return False
     
+    
+    def unregister(self, var_name):
+        if self._lock.acquire(True, 1):
+            try:
+                if var_name in self._variables:
+                    del self._variables[var_name]
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                RKLogger.exception(str(e))
+                return False
+            finally:
+                self._lock.release()    
+         
+
 
     def get(self, var_name):
         "Get value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None"
@@ -114,6 +127,7 @@ class RKHTTPGlobals():
         else:
             # failed to get lock
             return False
+        
 
 
     def inc(self, var_name, inc_val = 1):
