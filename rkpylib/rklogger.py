@@ -20,11 +20,11 @@ class RKLogger:
         fh.setFormatter(formatter)        
         cls.logger.addHandler(fh)
 
-        if log_level == logging.DEBUG:		
-            ch = logging.StreamHandler()
-            ch.setLevel(log_level)
-            ch.setFormatter(formatter)
-            cls.logger.addHandler(ch)
+        #if log_level == logging.DEBUG:		
+        #    ch = logging.StreamHandler()
+        #    ch.setLevel(log_level)
+        #    ch.setFormatter(formatter)
+        #    cls.logger.addHandler(ch)
 
 
     @classmethod
