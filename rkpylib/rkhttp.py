@@ -78,6 +78,7 @@ class RKHTTPGlobals():
                     del self._variables[var_name]
                     return True
                 else:
+                    RKLogger.debug("Variable {var_name} not found in globals")
                     return False
             except Exception as e:
                 RKLogger.exception(str(e))
@@ -96,13 +97,15 @@ class RKHTTPGlobals():
                 if var_name in self._variables:
                     return self._variables[var_name]
                 else:
-                   return None
+                    RKLogger.debug("Variable {var_name} not found in globals")
+                    return None
             except Exception as e:
                 RKLogger.exception(str(e))
                 return None
             finally:
                 self._lock.release()
         else:
+            RKLogger.debug("Failed to get lock in globals.get")
             return None
 
     
@@ -113,9 +116,8 @@ class RKHTTPGlobals():
         if self._lock.acquire(True, 1):
             try:
                 if not var_name in self._variables:
+                    RKLogger.debug("Variable {var_name} not found in globals")
                     return False
-                elif var_name in self._variables and var_value is None:
-                    del self._variables[var_name]
                 else:
                     self._variables[var_name] = var_value
                     return True
@@ -126,6 +128,7 @@ class RKHTTPGlobals():
                 self._lock.release()
         else:
             # failed to get lock
+            RKLogger.debug("Failed to get lock in globals.set")
             return False
         
 
