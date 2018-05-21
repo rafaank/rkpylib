@@ -52,7 +52,7 @@ class RKHTTPGlobals():
     def register(self, var_name, var_value):
         "Register a new global variable"
 
-        RKLogger.debug(f'Register requested for {var_name}')
+        RKLogger.debug(f'Registered new variable {var_name}')
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
@@ -90,8 +90,6 @@ class RKHTTPGlobals():
 
     def get(self, var_name):
         "Get value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None"
-
-        RKLogger.debug(f'get requested for {var_name}')        
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
@@ -111,8 +109,6 @@ class RKHTTPGlobals():
     
     def set(self, var_name, var_value):
         "Set value of a registered global variable, return True if variable value is set else returns False if the variable does not exists or if failed to set the value"
-
-        RKLogger.debug(f'set requested for {var_name}')
         if self._lock.acquire(True, 1):
             try:
                 if not var_name in self._variables:
@@ -136,7 +132,6 @@ class RKHTTPGlobals():
     def inc(self, var_name, inc_val = 1):
         "Increments a registered variables value by <inc_val>, returns True if value is incremented sucessfully else returns False if failed to set the value"
         
-        RKLogger.debug(f'inc requested for {var_name}')        
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
