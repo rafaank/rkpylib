@@ -165,10 +165,8 @@ def RKHTTPHandlerClassFactory(globals):
       
         def __del__(self):
             "Destructor for the RKHTTPRequestHandler object"
-            del self.request
-            del self.response            
-            del self.globals
-            # super(RKHTTPRequestHandler, self).__del__()
+            #super(RKHTTPRequestHandler, self).__del__()
+            pass
                                                       
         def do_preprocess(self):
             "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
