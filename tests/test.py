@@ -20,9 +20,11 @@ def hello(globals, request, response):
 @RKHTTP.route('/sample')
 def sample(globals, request, response):    
     '''
-    globals.register(self, var_name, var_value, reload_interval = None, reload_func = None): Registers a new variable in the global scope, this variable is accessible and shares the same value across all threads within the RKHttp scope.  reload_interval is the number of seconds after which a reload needs to be trigged and reload_func is the reload action that gets trigged.  reload_func is expected to return a value that is updated against the variable at every reload_interval.  This can majorly be used to synchronize the global variable data at certain time intervals.   If a variable does not need to be reloaded, its reload_interval must be passed as None (default).  If either reload_interval or reload_func is passed as None the variable is not reloaded.
+    globals.register(self, var_name, var_value): Registers a new variable in the global scope, this variable is accessible and shares the same value across all threads within the RKHttp instance scope.  
+    globals.unregister(self, var_name): Unregisters a variable from the global scope
     globals.get(var_name): Returns the values for a global variable, example usage globals("var_name")
-    globals.set(var_name, var_value): Updates value of a global variabled.  To de-register a variable update its value with None.  
+    globals.set(var_name, var_value): Updates value of a global variable.
+    globals.inc(self, var_name, inc_val = 1): Updates the value of a global variable with inc_val.  You can use negative integers to decrement a value.
 
     request.parsed_path: Contains ParseResult object which is retrieved after processing the url through the parse.urlparse(path) function
     request.url_params: Url query params processed into a dictionary for ready to access

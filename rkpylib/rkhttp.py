@@ -72,13 +72,15 @@ class RKHTTPGlobals():
     
     
     def unregister(self, var_name):
+        "Unregister a global variable"
+
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
                     del self._variables[var_name]
                     return True
                 else:
-                    RKLogger.debug("Variable {var_name} not found in globals")
+                    RKLogger.debug(f"Variable {var_name} not found in globals")
                     return False
             except Exception as e:
                 RKLogger.exception(str(e))
@@ -95,7 +97,7 @@ class RKHTTPGlobals():
                 if var_name in self._variables:
                     return self._variables[var_name]
                 else:
-                    RKLogger.debug("Variable {var_name} not found in globals")
+                    RKLogger.debug(f"Variable {var_name} not found in globals")
                     return None
             except Exception as e:
                 RKLogger.exception(str(e))
@@ -112,7 +114,7 @@ class RKHTTPGlobals():
         if self._lock.acquire(True, 1):
             try:
                 if not var_name in self._variables:
-                    RKLogger.debug("Variable {var_name} not found in globals")
+                    RKLogger.debug(f"Variable {var_name} not found in globals")
                     return False
                 else:
                     self._variables[var_name] = var_value
@@ -171,27 +173,37 @@ def RKHTTPHandlerClassFactory(globals):
         def do_preprocess(self):
             "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
             
-            self.request = RKDict()
-            self.request.path = self.path
-            self.request.parsed_path = parse.urlparse(self.path)
-            self.request.url_params = parse.parse_qsl(self.request.parsed_path.query)
-            self.request.command = self.command
-            self.request.headers = self.headers
-            self.request.rfile = self.rfile            
+            try:
+                self.request = RKDict()
+                self.request.path = self.path
+                self.request.parsed_path = parse.urlparse(self.path)
+                self.request.url_paramsl = parse.parse_qsl(self.request.parsed_path.query)
+                self.request.url_paramsd = parse.parse_qs(self.request.parsed_path.query)
+                self.request.url_params = dict(parse.parse_qsl(self.request.parsed_path.query))
     
-            self.response = RKDict()
-            self.response.wfile = self.wfile
-            self.response.send_response = self.send_response
-            self.response.send_error = self.send_error
-            self.response.send_header = self.send_header
-            self.response.end_headers = self.end_headers
-            
-            self.function = RKHTTP._route_function(self.request.parsed_path.path)
-            if not self.function:
-                self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
-                return False
+                self.request.command = self.command
+                self.request.headers = self.headers
+                self.request.rfile = self.rfile
+                self.request.post_data = ""
+        
+                self.response = RKDict()
+                self.response.wfile = self.wfile
+                self.response.send_response = self.send_response
+                self.response.send_error = self.send_error
+                self.response.send_header = self.send_header
+                self.response.end_headers = self.end_headers
                 
-            return True
+                
+                self.function = RKHTTP._route_function(self.request.parsed_path.path)
+                if not self.function:
+                    self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
+                    return False
+                    
+                return True
+            except Exception as e:
+                self.send_error(500, str(e), traceback.format_exc())
+                return False
+            
     
             
         def do_GET(self):
