@@ -210,11 +210,6 @@ def RKHTTPHandlerClassFactory(globals):
             "GET request handler, calls the route_path attached function"
             
             if self.do_preprocess():
-                '''
-                RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
-                self.function(self.globals, self.request, self.response)
-                RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
-                '''                
                 try:
                     RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
                     self.function(self.globals, self.request, self.response)
@@ -232,12 +227,15 @@ def RKHTTPHandlerClassFactory(globals):
             "GET request handler, initalizes the post data and makes it available as a request variable. Later calls the route_path attached function"
             
             if self.do_preprocess(): 
+                
+                '''
                 try:
-                    content_length = int(self.headers['Content-Length'])             
+                    content_length = int(self.headers['Content-Length'])
                     self.request.post_data = self.rfile.read(content_length)            
                 except Exception as e:
                     self.send_error(500, str(e), traceback.format_exc())
                     return
+                '''
                 
                 try:
                     RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
