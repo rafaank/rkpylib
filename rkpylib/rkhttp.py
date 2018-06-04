@@ -175,13 +175,19 @@ def RKHTTPHandlerClassFactory(globals):
             
             try:
                 self.request = RKDict()
+                self.request.client_address = self.client_address
+                self.request.server = self.server
+                self.request.close_connection = self.close_connection
+                self.request.requestline = self.requestline
+                self.request.command = self.command
                 self.request.path = self.path
+                self.request.request_version = self.request_version
+
                 self.request.parsed_path = parse.urlparse(self.path)
                 self.request.url_paramsl = parse.parse_qsl(self.request.parsed_path.query)
                 self.request.url_paramsd = parse.parse_qs(self.request.parsed_path.query)
                 self.request.url_params = dict(parse.parse_qsl(self.request.parsed_path.query))
     
-                self.request.command = self.command
                 self.request.headers = self.headers
                 self.request.rfile = self.rfile
                 self.request.post_data = ""

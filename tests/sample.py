@@ -25,12 +25,22 @@ def sample(globals, request, response):
     globals.get(var_name): Returns the values for a global variable, example usage globals("var_name")
     globals.set(var_name, var_value): Updates value of a global variable.
     globals.inc(self, var_name, inc_val = 1): Updates the value of a global variable with inc_val.  You can use negative integers to decrement a value.
-
+    
+    request.client_address: Contains a tuple of the form (host, port) referring to the client’s address.
+    request.server: Contains the server instance
+    request.close_connection: Boolean that should be set before handle_one_request() returns, indicating if another request may be expected, or if the connection should be shut down.
+    request.requestline: Contains the string representation of the HTTP request line. The terminating CRLF is stripped. This attribute should be set by handle_one_request(). If no valid request line was processed, it should be set to the empty string
+    request.command: Contains the command (request type). For example, 'GET'
+    request.path: Contains the request path
+    request.request_version: Contains the version string from the request. For example, 'HTTP/1.0'.
+    
     request.parsed_path: Contains ParseResult object which is retrieved after processing the url through the parse.urlparse(path) function
     request.url_params: Url query params processed into a dictionary for ready to access
-    request.headers: Extends access to the request headers dictionary
+    request.url_paramsl: Url query params parsed as a list, Data are returned as a list of name, value pairs
+    request.url_paramsd: Url query params processed into a dictionary, The dictionary keys are the unique query variable names and the values are lists of values for each name.
+    
+    request.headers: Extends access to the request headers dictionary. 
     request.command: Contains the command (request type). For example, 'GET' or 'POST'.  All other types are unsupported
-    request.post_data: Request data received in POST method
     request.rfile: Reference to io.BufferedIOBase input stream of BaseHTTPHandler , ready to read from the start of the optional input data.  This should ideally be not required as all the data is already read and processed in easily readable variables 
     
     response.wfile: Reference to the io.BufferedIOBase output stream of BaseHTTPHandler for writing a response back to the client. Proper adherence to the HTTP protocol must be used when writing to this stream in order to achieve successful interoperation with HTTP clients
