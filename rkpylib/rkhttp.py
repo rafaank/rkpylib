@@ -30,6 +30,7 @@ class RKHTTPGlobals():
         self._nof_requests = 0
         self._variables = dict()
         self._lock = Lock()
+        self._error = None
 
     
     def __del__(self):
@@ -172,6 +173,10 @@ def RKHTTPHandlerClassFactory(globals):
                                                       
         def do_preprocess(self):
             "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
+            err = self.globals._error
+            if err and isinstance(err, Exception) :
+                self.send_error(200, str(err), traceback.print_tb(err.__traceback__))
+                return False
             
             try:
                 self.request = RKDict()
