@@ -9,6 +9,10 @@ class RKDict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
     
+
+def isdefined(x):
+    try: x
+    except NameError: x = None
     
 def setInterval(interval):
     def decorator(function):

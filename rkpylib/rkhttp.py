@@ -14,7 +14,9 @@ from threading import Thread, Lock
 from .rkutils import *
 from .rklogger import RKLogger
 
-# import json
+import json
+from bson import json_util
+
 # import importlib
 # import importlib.util
 
@@ -47,7 +49,6 @@ class RKHTTPGlobals():
 
         del self._variables
         del self._lock
-        print("Destroying Globals")
     
     
     def register(self, var_name, var_value):
@@ -174,11 +175,20 @@ def RKHTTPHandlerClassFactory(globals):
         def do_preprocess(self):
             "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
             err = self.globals._error
-            if err and isinstance(err, Exception) :
-                self.send_error(200, str(err), traceback.print_tb(err.__traceback__))
+            if isinstance(err, Exception) :
+                #self.send_error(200, str(err), traceback.print_tb(err.__traceback__))
+                self.send_exception(500, str(err), err)
                 return False
             
             try:
+                self.error_content_type = "application/json"
+                self.error_message_format = '''
+                    {
+                        error_code: %(code)d
+                        message: '%(message)s'
+                        details: '%(explain)s'
+                    }
+                '''
                 self.request = RKDict()
                 self.request.client_address = self.client_address
                 self.request.server = self.server
@@ -203,6 +213,7 @@ def RKHTTPHandlerClassFactory(globals):
                 self.response.send_error = self.send_error
                 self.response.send_header = self.send_header
                 self.response.end_headers = self.end_headers
+                self.response.send_exception = self.send_exception
                 
                 
                 self.function = RKHTTP._route_function(self.request.parsed_path.path)
@@ -212,10 +223,35 @@ def RKHTTPHandlerClassFactory(globals):
                     
                 return True
             except Exception as e:
-                self.send_error(500, str(e), traceback.format_exc())
+                #self.send_error(500, str(e), traceback.format_exc())
+                self.send_exception(500, str(e), e)
                 return False
             
     
+        def send_exception(self, code, message=None, exception=None):
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')            
+            self.end_headers()            
+            resp_json = dict()
+            resp_json['code'] = code
+            resp_json['message'] = message
+            if isinstance(exception, Exception):
+                #exc_type, exc_value, exc_traceback = sys.exc_info()
+                #trace_list = traceback.extract_tb(exc_traceback)
+                trace_list = traceback.extract_tb(exception.__traceback__)
+                new_trace_list = list()
+                for idx, val in enumerate(trace_list):
+                    new_trace_list.append(repr(val).replace('<FrameSummary ', '', 1)[:-1])    
+                
+                resp_json['exception'] = new_trace_list
+            else:
+                resp_json['exception'] = exception
+            
+            response_text = json.dumps(resp_json, default=json_util.default)
+            self.wfile.write(response_text.encode("utf-8"))
+            
+            
+            
             
         def do_GET(self):
             "GET request handler, calls the route_path attached function"
@@ -229,8 +265,9 @@ def RKHTTPHandlerClassFactory(globals):
                     RKLogger.exception(str(bpe))
                 except Exception as e:
                     try:
-                        self.send_error(500, str(e), traceback.format_exc())
-                    except Exception as e:
+                        #self.send_error(500, str(e), traceback.format_exc())
+                        self.send_exception(500, str(e), e)
+                    except Exception as e:                        
                         RKLogger.exception(str(e))
 
     
