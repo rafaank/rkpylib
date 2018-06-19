@@ -181,14 +181,6 @@ def RKHTTPHandlerClassFactory(globals):
                 return False
             
             try:
-                self.error_content_type = "application/json"
-                self.error_message_format = '''
-                    {
-                        error_code: %(code)d
-                        message: '%(message)s'
-                        details: '%(explain)s'
-                    }
-                '''
                 self.request = RKDict()
                 self.request.client_address = self.client_address
                 self.request.server = self.server
