@@ -285,7 +285,8 @@ def RKHTTPHandlerClassFactory(globals):
                     RKLogger.exception(str(bpe))
                 except Exception as e:
                     try:
-                        self.send_error(500, str(e), traceback.format_exc())
+                        #self.send_error(500, str(e), traceback.format_exc())
+                        self.send_exception(500, str(e), e)
                     except Exception as e:
                         RKLogger.exception(str(e))
    
