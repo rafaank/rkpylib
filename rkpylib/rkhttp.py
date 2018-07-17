@@ -1,9 +1,125 @@
+"""RKHTTPServer
+A single-core multi-threaded HTTPServer that enables sharing of data
+and information amongst http requests using a global instance of type RKHTTPGlobals.
+
+RKHTTPGlobals
+A thread-safe storage class, that makes it easy to store and retrieve variables
+that can be shared amongst requests within a process
+
+Global Functions
+    globals.register(self, var_name, var_value):
+            Registers a new variable in the global scope, this variable is accessible
+            and shares the same value across all threads within the RKHttp instance scope.  
+    
+    globals.unregister(self, var_name):
+            Unregisters a variable from the global scope
+    
+    globals.get(var_name):
+            Returns the values for a global variable
+    
+    globals.set(var_name, var_value):
+            Updates value of a global variable.
+    
+    globals.inc(self, var_name, inc_val = 1):
+            Increments the value of a global variable with inc_val.  You can use negative integers to decrement a value.
+
+
+Request Variables    
+    request.client_address:
+            Contains a tuple of the form (host, port) referring to the client’s address.
+    
+    request.server:
+            Contains the server instance
+    
+    request.close_connection:
+            Boolean that should be set before handle_one_request() returns,
+            indicating if another request may be expected, or if the connection should be shut down.
+    
+    request.requestline:
+            Contains the string representation of the HTTP request line. The terminating CRLF is stripped.
+            This attribute should be set by handle_one_request(). If no valid request line was processed,
+            it should be set to the empty string
+    
+    request.command:
+            Contains the command (request type). For example, 'GET'
+    
+    request.path:
+            Contains the request path
+    
+    request.request_version:
+            Contains the version string from the request. For example, 'HTTP/1.0'.    
+    
+    request.parsed_path:
+            Contains ParseResult object which is retrieved after processing the url through the parse.urlparse(path) function
+    
+    request.url_params:
+            Url query params processed into a dictionary for ready to access
+    
+    request.url_paramsl:
+            Url query params parsed as a list, Data are returned as a list of name, value pairs
+    
+    request.url_paramsd:
+            Url query params processed into a dictionary, The dictionary keys are the unique
+            query variable names and the values are lists of values for each name.    
+    
+    request.post_data:
+            Post request data,
+    
+    
+    request.headers:
+            Extends access to the request headers dictionary. 
+    
+    request.command:
+            Contains the command (request type). For example, 'GET' or 'POST'.  All other types are unsupported
+    
+    request.rfile:
+            Reference to io.BufferedIOBase input stream of BaseHTTPHandler, ready to read from
+            the start of the optional input data.  This should ideally be not required as all
+            the data is already read and processed in easily readable variables
+            
+    response.wfile:
+            Reference to the io.BufferedIOBase output stream of BaseHTTPHandler for writing a
+            response back to the client. Proper adherence to the HTTP protocol must be used
+            when writing to this stream in order to achieve successful interoperation with HTTP clients
+
+
+Response Functions
+    response.send_response(code, message=None):
+            Reference to the send_response function of BaseHTTPHandler. Adds a response header
+            to the headers buffer and logs the accepted request. The HTTP response line is
+            written to the internal buffer, followed by Server and Date headers. The values for
+            these two headers are picked up from the version_string() and date_time_string() methods,
+            respectively. If the server does not intend to send any other headers using the
+            send_header() method, then send_response() should be followed by an end_headers() call.
+            
+    response.send_error(code, message=None):
+            Reference to the send_error function of BaseHTTPHandler. Adds a response header
+            to the headers buffer and logs the accepted request. The HTTP response line is written
+            to the internal buffer, followed by Server and Date headers. The values for these
+            two headers are picked up from the version_string() and date_time_string() methods,
+            respectively. If the server does not intend to send any other headers using the send_header()
+            method, then send_response() should be followed by an end_headers() call.
+            
+    response.send_header(keyword, value):
+            Reference to the send_header function of BaseHTTPHandler. Adds the HTTP header to an internal
+            buffer which will be written to the output stream when either end_headers() or flush_headers()
+            is invoked. keyword should specify the header keyword, with value specifying its value. Note that,
+            after the send_header calls are done, end_headers() MUST BE called in order to complete the operation
+    
+    response.end_headers():
+            Reference to the end_headers function of BaseHTTPHandler. Adds a blank line (indicating the end
+            of the HTTP headers in the response) to the headers buffer and calls flush_headers().
+
+"""
+
+
 import errno
 import importlib
 import socket
 import sys
 import time
 import traceback
+import cgi
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib import parse
@@ -27,16 +143,18 @@ global server
 class RKHTTPGlobals():
         
     def __init__(self):        
-        "Create a new instance of RKHTTPGlobals object that will be used to bind with RKHTTPServer instance"
+        """Creates a new instance of RKHTTPGlobals object that will be used to bind with RKHTTPServer instance."""
 
         self._nof_requests = 0
         self._variables = dict()
         self._lock = Lock()
         self._error = None
+        self._config = dict()
+        self._config['parse_post_data'] = False
 
     
     def __del__(self):
-        "Destructor to destroy the RKHTTPGlobals object instance and all child objects"
+        """Destructor to destroy the RKHTTPGlobals object instance and all child objects."""
  
         if self._lock.acquire(True, 10):
             try:
@@ -52,7 +170,7 @@ class RKHTTPGlobals():
     
     
     def register(self, var_name, var_value):
-        "Register a new global variable"
+        """Registers a new global variable."""
 
         RKLogger.debug(f'Registered new variable {var_name}')
         if self._lock.acquire(True, 1):
@@ -74,7 +192,7 @@ class RKHTTPGlobals():
     
     
     def unregister(self, var_name):
-        "Unregister a global variable"
+        """Unregisters a global variable."""
 
         if self._lock.acquire(True, 1):
             try:
@@ -93,7 +211,7 @@ class RKHTTPGlobals():
 
 
     def get(self, var_name):
-        "Get value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None"
+        """Gets value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None."""
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
@@ -112,7 +230,7 @@ class RKHTTPGlobals():
 
     
     def set(self, var_name, var_value):
-        "Set value of a registered global variable, return True if variable value is set else returns False if the variable does not exists or if failed to set the value"
+        """Sets value of a registered global variable, returns True if variable value is set else returns False if the variable does not exists or if failed to set the value."""
         if self._lock.acquire(True, 1):
             try:
                 if not var_name in self._variables:
@@ -134,7 +252,7 @@ class RKHTTPGlobals():
 
 
     def inc(self, var_name, inc_val = 1):
-        "Increments a registered variables value by <inc_val>, returns True if value is incremented sucessfully else returns False if failed to set the value"
+        """Increments a registered variables value by <inc_val>, returns True if value is incremented sucessfully else returns False if failed to set the value."""
         
         if self._lock.acquire(True, 1):
             try:
@@ -156,31 +274,33 @@ class RKHTTPGlobals():
   
 
 def RKHTTPHandlerClassFactory(globals):
-    "Class factory to customize the initialization of RKHTTPRequestHandler object with additional global parameter"
+    """Class factory to customize the initialization of RKHTTPRequestHandler object with additional global parameter."""
+
     class RKHTTPRequestHandler(BaseHTTPRequestHandler):
-        "Class RKHTTPRequestHandler derived from BaseHTTPRequestHandler, a subclass to handle all HTTP requests"
+        """Class RKHTTPRequestHandler derived from BaseHTTPRequestHandler, a subclass to handle all HTTP requests."""
         
         def __init__(self, *args, **kwargs):
-            "Constructor of RKHTTPRequestHandler, initializes the handler and binds the HTTPGlobals object to the handler"
+            """Constructor of RKHTTPRequestHandler, initializes the handler and binds the HTTPGlobals object to the handler."""
             self.globals = globals
             self.globals._nof_requests += 1
             super(RKHTTPRequestHandler, self).__init__(*args, **kwargs)
       
       
         def __del__(self):
-            "Destructor for the RKHTTPRequestHandler object"
+            """Destructor for the RKHTTPRequestHandler object."""
             #super(RKHTTPRequestHandler, self).__del__()
             pass
                                                       
         def do_preprocess(self):
-            "Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request"
+            """Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request."""
             err = self.globals._error
             if isinstance(err, Exception) :
                 #self.send_error(200, str(err), traceback.print_tb(err.__traceback__))
                 self.send_exception(500, str(err), err)
                 return False
-            
+          
             try:
+                
                 self.request = RKDict()
                 self.request.client_address = self.client_address
                 self.request.server = self.server
@@ -188,8 +308,9 @@ def RKHTTPHandlerClassFactory(globals):
                 self.request.requestline = self.requestline
                 self.request.command = self.command
                 self.request.path = self.path
+                self.request.content_type = None
                 self.request.request_version = self.request_version
-
+    
                 self.request.parsed_path = parse.urlparse(self.path)
                 self.request.url_paramsl = parse.parse_qsl(self.request.parsed_path.query)
                 self.request.url_paramsd = parse.parse_qs(self.request.parsed_path.query)
@@ -197,7 +318,7 @@ def RKHTTPHandlerClassFactory(globals):
     
                 self.request.headers = self.headers
                 self.request.rfile = self.rfile
-                self.request.post_data = ""
+                self.request.post_data = None
         
                 self.response = RKDict()
                 self.response.wfile = self.wfile
@@ -206,8 +327,7 @@ def RKHTTPHandlerClassFactory(globals):
                 self.response.send_header = self.send_header
                 self.response.end_headers = self.end_headers
                 self.response.send_exception = self.send_exception
-                
-                
+    
                 self.function = RKHTTP._route_function(self.request.parsed_path.path)
                 if not self.function:
                     self.send_error(404, 'Not Found - ' + self.request.parsed_path.path )
@@ -218,9 +338,88 @@ def RKHTTPHandlerClassFactory(globals):
                 #self.send_error(500, str(e), traceback.format_exc())
                 self.send_exception(500, str(e), e)
                 return False
+                        
             
+        def do_GET(self):
+            """GET request handler, calls the route function attached to the url_path."""
+            if self.do_preprocess():
+                try:
+                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                    self.function(self.globals, self.request, self.response)
+                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
+                except BrokenPipeError as bpe:
+                    RKLogger.exception(str(bpe))
+                except Exception as e:
+                    try:
+                        #self.send_error(500, str(e), traceback.format_exc())
+                        self.send_exception(500, str(e), e)
+                    except Exception as e:                        
+                        RKLogger.exception(str(e))
+
+    
+        def do_POST(self):
+            """GET request handler, initalizes the post data and makes it available as a request variable. Later calls the route function attached to the url_path."""
+            if self.do_preprocess(): 
+                try:   
+                    if (self.globals._config['parse_post_data']):                        
+                        post_data = None
+                        ctype = self.headers['content-type']
+                        if ctype: 
+                            if ctype == 'application/json':
+                                content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
+                                post_data = self.rfile.read(content_length) # <--- Gets the data itself
+                                post_data = json.loads(post_data.decode('utf-8'))
+                            elif ctype.startswith('multipart/form-data'):
+                                 # boundary data needs to be encoded in a binary format
+                                ctype, pdict = cgi.parse_header(self.headers['content-type'])
+                                pdict['boundary'] = bytes(pdict['boundary'], "utf-8")
+                                post_data = cgi.parse_multipart(self.rfile, pdict)            
+                            elif ctype == 'application/x-www-form-urlencoded':
+                                content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
+                                post_data = self.rfile.read(content_length) # <--- Gets the data itself
+                                post_data = parse.parse_qs(post_data.decode('utf-8'))
+                    
+                        self.request.post_data = post_data
+                        self.request.content_type = ctype
+                except Exception as e:
+                    self.send_exception(500, f"{str(e)} - An Exception occured trying to read post_data, if you think your post data is correct, then try reading it directly from rfile by setting the global._config['parse_post_data']=False", e)
+                
+                try:
+                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                    self.function(self.globals, self.request, self.response)
+                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
+                except BrokenPipeError as bpe:
+                    RKLogger.exception(str(bpe))
+                except Exception as e:
+                    #self.send_error(500, str(e), traceback.format_exc())
+                    self.send_exception(500, str(e), e)
+   
+    
+        def log_message(self, format, *args):
+            """Override to the default log_message to write all logs to RKLogger"""
+            RKLogger.debug(format, *args)
+    
+        
+        def log_error(self, format, *args):
+            """Override to the default log_message to write all logs to RKLogger"""
+            RKLogger.exception(format, *args)
+    
+    
+        def log_response_text(self, format, *args):
+            """Override to the default log_message to write all logs to RKLogger"""
+            RKLogger.debug(format, *args)
+    
+    
+        def handle_default(self, request, response):
+            """Function to handle all default treated requests, will be deprecated in future"""
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')            
+            self.end_headers()
+            self.wfile.write('RKHTTP is active...'.encode('utf-8'))                        
+                               
     
         def send_exception(self, code, message=None, exception=None):
+            """ Returns a json formatted and easy readable exception information with traceback information."""
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')            
             self.end_headers()            
@@ -240,79 +439,12 @@ def RKHTTPHandlerClassFactory(globals):
                 resp_json['exception'] = exception
             
             response_text = json.dumps(resp_json, default=json_util.default)
-            self.wfile.write(response_text.encode("utf-8"))
+            try:
+                self.wfile.write(response_text.encode("utf-8"))
+            except Exception as e:
+                RKLogger.exception(str(e))
             
-            
-            
-            
-        def do_GET(self):
-            "GET request handler, calls the route_path attached function"
-            
-            if self.do_preprocess():
-                try:
-                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
-                    self.function(self.globals, self.request, self.response)
-                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
-                except BrokenPipeError as bpe:
-                    RKLogger.exception(str(bpe))
-                except Exception as e:
-                    try:
-                        #self.send_error(500, str(e), traceback.format_exc())
-                        self.send_exception(500, str(e), e)
-                    except Exception as e:                        
-                        RKLogger.exception(str(e))
 
-    
-        def do_POST(self):
-            "GET request handler, initalizes the post data and makes it available as a request variable. Later calls the route_path attached function"
-            
-            if self.do_preprocess(): 
-                
-                '''
-                try:
-                    content_length = int(self.headers['Content-Length'])
-                    self.request.post_data = self.rfile.read(content_length)            
-                except Exception as e:
-                    self.send_error(500, str(e), traceback.format_exc())
-                    return
-                '''
-                
-                try:
-                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
-                    self.function(self.globals, self.request, self.response)
-                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
-                except BrokenPipeError as bpe:
-                    RKLogger.exception(str(bpe))
-                except Exception as e:
-                    try:
-                        #self.send_error(500, str(e), traceback.format_exc())
-                        self.send_exception(500, str(e), e)
-                    except Exception as e:
-                        RKLogger.exception(str(e))
-   
-    
-        def log_message(self, format, *args):
-            "Override to the default log_message to write all logs to RKLogger"
-            RKLogger.debug(format, *args)
-    
-        
-        def log_error(self, format, *args):
-            "Override to the default log_message to write all logs to RKLogger"
-            RKLogger.exception(format, *args)
-    
-    
-        def log_response_text(self, format, *args):
-            "Override to the default log_message to write all logs to RKLogger"
-            RKLogger.debug(format, *args)
-    
-    
-        def handle_default(self, request, response):
-            "Function to handle all default treated requests, will be deprecated in future"
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/plain; charset=utf-8')            
-            self.end_headers()
-            self.wfile.write('RKHTTP is active...'.encode('utf-8'))                        
-                               
     return RKHTTPRequestHandler
 
    
@@ -322,11 +454,12 @@ class RKHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 class RKHTTP():
-    "Wrapper class to initialize a RKHTTPServer instance.  Also manages all route_paths and route_functions"
+    """Wrapper class to initialize a RKHTTPServer instance.  Also manages all route_paths and route_functions"""
     _routes = dict()
     
     @classmethod    
     def route(cls, route_str):
+        """ Decorator to bind url path to a function """
         def decorator(f):
             cls._routes[route_str] = f
             return f
@@ -335,13 +468,15 @@ class RKHTTP():
     
     
     @classmethod
-    def _route_function(cls, path):
-        rfunc = cls._routes.get(path)
+    def _route_function(cls, url_path):
+        """ Returns the function associated with the given url_path  """
+        rfunc = cls._routes.get(url_path)
         return rfunc
 
     
     @classmethod
     def server(cls, ip_port, globals):
+        """ Returns a new instance of a single core multi-threaded HTTP Server. """
         s = RKHTTPServer(ip_port, RKHTTPHandlerClassFactory(globals))
         return s
 
