@@ -1,0 +1,13 @@
+[Unit]
+Description=RKClusterLock Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/python3 rkclusterlockserver.py
+
+
+[Install]
+WantedBy=multi-user.target
