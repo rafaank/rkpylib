@@ -4,11 +4,12 @@ import socket
 
 class RKClusterLock():
     
-    ACQUIRE     = '_acquire_'
-    LOCKED      = '_locked_'
-    RELEASE     = '_release_'
-    FAILED      = '_failed_'
-    SEPARATOR   = '#$#$#'
+    ACQUIRE     = 'acq'
+    LOCKED      = 'lck'
+    RELEASE     = 'rel'
+    FAILED      = 'fail'
+    ERROR       = 'err'
+    SEPARATOR   = ' '
     BUF_SIZE    = 64
     
     
@@ -86,5 +87,4 @@ class RKClusterLock():
         message = RKClusterLock.RELEASE + RKClusterLock.SEPARATOR + data
         self.sock.sendall(bytes(message, 'ascii'))
         return True
-        
 

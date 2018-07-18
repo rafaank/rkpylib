@@ -7,11 +7,14 @@ import socket
 
 from rklogger import RKLogger
 from rkclusterlock import RKClusterLock
+import rkutils
+
 
 class RKClusterNode():
     def __init__(self):
         self.lock  = Lock()
         self.data = ""
+
 
 class RKClusterLockServer():
     def __init__(self):
@@ -19,7 +22,26 @@ class RKClusterLockServer():
     
     def start(self, host = 'localhost', port = 9191):
     
+        def load_app_data(nodes):
+            pass
+        
+        @rkutils.setInterval(60)
+        def save_app_data(nodes):
+            for app_name,node in nodes.items():
+                if node.lock.acquire(True, 1):
+                    try:
+                        data = node.data
+                    finally:
+                        node.lock.release()
+                    
+                    with open("/home/ec2-user/rk/rkpylib/rkpylib/data/" + app_name, 'w+') as f:
+                        f.write(data)
+                        
+                    
+            
         nodes = dict()
+        save_app_data(nodes)
+        
         self.server = RKTCPServer((host, port), RKTCPHandlerClassFactory(nodes))
         
         self.ip, self.port = self.server.server_address
@@ -31,7 +53,7 @@ class RKClusterLockServer():
         
     def stop(self):
         self.server.shutdown()
-        self.server.server_close()        
+        self.server.server_close()
 
 
 
@@ -71,7 +93,7 @@ def RKTCPHandlerClassFactory(nodes):
                     #self.request.setdefaulttimeout(5.0)
                     self.request.settimeout(None)
                     try:
-                        data = str(self.request.recv(RKClusterLock.BUF_SIZE), 'ascii')
+                        data = str(self.request.recv(RKClusterLock.BUF_SIZE), 'ascii').strip()
                     except socket.timeout as to:
                         RKLogger.error("Timeout reading from client", extra=self.logger_extra)
                         continue
@@ -83,10 +105,11 @@ def RKTCPHandlerClassFactory(nodes):
                         break
                     
                     data_arr = data.split(RKClusterLock.SEPARATOR)
+                    print(data_arr)
  
                     if data_arr[0] == RKClusterLock.ACQUIRE:
                         try:
-                            app_name = data_arr[1]
+                            app_name = data_arr[1].rstrip()
                         except IndexError as ie:
                             RKLogger.error("Missing app_name",extra=self.logger_extra)
                             response = RKClusterLock.FAILED
@@ -116,10 +139,10 @@ def RKTCPHandlerClassFactory(nodes):
                                 self.request.settimeout(max_release_time)
                                 
                                 response = RKClusterLock.LOCKED + RKClusterLock.SEPARATOR + self.node.data 
-                                self.request.sendall(bytes(response, 'ascii'))                            
+                                self.request.sendall(bytes(response.strip(), 'ascii'))                            
                                 
                                 data = str(self.request.recv(RKClusterLock.BUF_SIZE), 'ascii')                        
-                                data_arr = data.split(RKClusterLock.SEPARATOR)
+                                data_arr = data.split(RKClusterLock.SEPARATOR, 1)
         
                                 if data_arr[0] == RKClusterLock.RELEASE:
                                     RKLogger.info("Releasing lock",extra=self.logger_extra)
@@ -136,6 +159,11 @@ def RKTCPHandlerClassFactory(nodes):
                         else:
                             response = RKClusterLock.FAILED
                             self.request.sendall(bytes(response, 'ascii'))
+                            
+                    else:
+                        response = RKClusterLock.ERROR
+                        self.request.sendall(bytes(response, 'ascii'))
+                        
                             
                 except ConnectionError as ce:                
                     RKLogger.error("Connection error", extra=self.logger_extra)
