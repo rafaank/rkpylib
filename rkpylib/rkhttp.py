@@ -125,11 +125,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib import parse
 from socketserver import ThreadingMixIn
 from threading import Thread, Lock
-
-
 from .rkutils import *
-from .rklogger import RKLogger
 
+import logging 
 import json
 from bson import json_util
 
@@ -141,7 +139,6 @@ global server
 
 
 class RKHTTPGlobals():
-        
     def __init__(self):        
         """Creates a new instance of RKHTTPGlobals object that will be used to bind with RKHTTPServer instance."""
 
@@ -151,6 +148,7 @@ class RKHTTPGlobals():
         self._error = None
         self._config = dict()
         self._config['parse_post_data'] = False
+        self._logger = None
 
     
     def __del__(self):
@@ -168,11 +166,10 @@ class RKHTTPGlobals():
         del self._variables
         del self._lock
     
-    
+        
     def register(self, var_name, var_value):
         """Registers a new global variable."""
-
-        RKLogger.debug(f'Registered new variable {var_name}')
+            
         if self._lock.acquire(True, 1):
             try:
                 if var_name in self._variables:
@@ -180,9 +177,10 @@ class RKHTTPGlobals():
                     return False
                 else:
                     self._variables[var_name] = var_value
+                    self._logger.debug(f'Registered new variable {var_name}')
                     return True
             except Exception as e:
-                RKLogger.exception(str(e))
+                self._logger.exception(str(e))
                 return False            
             finally:
                 self._lock.release()
@@ -200,15 +198,17 @@ class RKHTTPGlobals():
                     del self._variables[var_name]
                     return True
                 else:
-                    RKLogger.debug(f"Variable {var_name} not found in globals")
+                    self._logger.debug(f"Variable {var_name} not found in globals")
                     return False
             except Exception as e:
-                RKLogger.exception(str(e))
+                self._logger.exception(str(e))
                 return False
             finally:
                 self._lock.release()    
          
-
+    #def __getattr__(self, attr):
+    #    return self.get(var_name)
+    
 
     def get(self, var_name):
         """Gets value of a registered global variable, returns variable value if the variable exists and value is successfully fetched else returns None."""
@@ -217,15 +217,15 @@ class RKHTTPGlobals():
                 if var_name in self._variables:
                     return self._variables[var_name]
                 else:
-                    RKLogger.debug(f"Variable {var_name} not found in globals")
+                    self._logger.debug(f"Variable {var_name} not found in globals")
                     return None
             except Exception as e:
-                RKLogger.exception(str(e))
+                self._logger.exception(str(e))
                 return None
             finally:
                 self._lock.release()
         else:
-            RKLogger.debug("Failed to get lock in globals.get")
+            self_logger.debug("Failed to get lock in globals.get")
             return None
 
     
@@ -234,19 +234,19 @@ class RKHTTPGlobals():
         if self._lock.acquire(True, 1):
             try:
                 if not var_name in self._variables:
-                    RKLogger.debug(f"Variable {var_name} not found in globals")
+                    self._logger.debug(f"Variable {var_name} not found in globals")
                     return False
                 else:
                     self._variables[var_name] = var_value
                     return True
             except Exception as e:
-                RKLogger.exception(str(e))
+                self._logger.exception(str(e))
                 return False                
             finally:
                 self._lock.release()
         else:
             # failed to get lock
-            RKLogger.debug("Failed to get lock in globals.set")
+            self._logger.debug("Failed to get lock in globals.set")
             return False
         
 
@@ -265,7 +265,7 @@ class RKHTTPGlobals():
                 else:
                    return False
             except Exception as e:
-                RKLogger.exception(str(e))
+                self._logger.exception(str(e))
                 return False
             finally:
                 self._lock.release()
@@ -344,17 +344,17 @@ def RKHTTPHandlerClassFactory(globals):
             """GET request handler, calls the route function attached to the url_path."""
             if self.do_preprocess():
                 try:
-                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                    self.globals._logger.debug(f'Executing function {self.request.parsed_path.path}')
                     self.function(self.globals, self.request, self.response)
-                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
+                    self.globals._logger.debug(f'Completed function {self.request.parsed_path.path}')                
                 except BrokenPipeError as bpe:
-                    RKLogger.exception(str(bpe))
+                    self.globals._logger.exception(str(bpe))
                 except Exception as e:
                     try:
                         #self.send_error(500, str(e), traceback.format_exc())
                         self.send_exception(500, str(e), e)
                     except Exception as e:                        
-                        RKLogger.exception(str(e))
+                        self.globals._logger.exception(str(e))
 
     
         def do_POST(self):
@@ -385,29 +385,29 @@ def RKHTTPHandlerClassFactory(globals):
                     self.send_exception(500, f"{str(e)} - An Exception occured trying to read post_data, if you think your post data is correct, then try reading it directly from rfile by setting the global._config['parse_post_data']=False", e)
                 
                 try:
-                    RKLogger.debug(f'Executing function {self.request.parsed_path.path}')
+                    self.globals._logger.debug(f'Executing function {self.request.parsed_path.path}')
                     self.function(self.globals, self.request, self.response)
-                    RKLogger.debug(f'Completed function {self.request.parsed_path.path}')                
+                    self.globals._logger.debug(f'Completed function {self.request.parsed_path.path}')                
                 except BrokenPipeError as bpe:
-                    RKLogger.exception(str(bpe))
+                    self.globals._logger.exception(str(bpe))
                 except Exception as e:
                     #self.send_error(500, str(e), traceback.format_exc())
                     self.send_exception(500, str(e), e)
    
     
         def log_message(self, format, *args):
-            """Override to the default log_message to write all logs to RKLogger"""
-            RKLogger.debug(format, *args)
+            """Override to the default log_message to write all logs to our logger"""
+            self.globals._logger.debug(format, *args)
     
         
         def log_error(self, format, *args):
-            """Override to the default log_message to write all logs to RKLogger"""
-            RKLogger.exception(format, *args)
+            """Override to the default log_message to write all logs to our logger"""
+            self.globals._logger.exception(format, *args)
     
     
         def log_response_text(self, format, *args):
-            """Override to the default log_message to write all logs to RKLogger"""
-            RKLogger.debug(format, *args)
+            """Override to the default log_message to write all logs to our logger"""
+            self.globals._logger.debug(format, *args)
     
     
         def handle_default(self, request, response):
@@ -442,14 +442,14 @@ def RKHTTPHandlerClassFactory(globals):
             try:
                 self.wfile.write(response_text.encode("utf-8"))
             except Exception as e:
-                RKLogger.exception(str(e))
+                self.globals._logger.exception(str(e))
             
 
     return RKHTTPRequestHandler
 
    
 class RKHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
+    globals = None
     
 
 
@@ -475,8 +475,22 @@ class RKHTTP():
 
     
     @classmethod
-    def server(cls, ip_port, globals):
-        """ Returns a new instance of a single core multi-threaded HTTP Server. """
+    def server(cls, ip_port, app_name, log_file):
+        """ Returns a new instance of a single core multi-threaded HTTP Server. """        
+        logger = logging.getLogger(app_name)
+        logger.setLevel(logging.DEBUG) # logging.ERROR
+        
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(logging.DEBUG)        
+        log_format = '%(asctime)-15s - %(name)s - %(levelname)-8s - %(message)s'
+        formatter = logging.Formatter(log_format)
+        fh.setFormatter(formatter)        
+        logger.addHandler(fh)
+
+        globals = RKHTTPGlobals()
+        globals._logger = logger
+
         s = RKHTTPServer(ip_port, RKHTTPHandlerClassFactory(globals))
+        s.globals = globals
         return s
 

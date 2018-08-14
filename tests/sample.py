@@ -6,7 +6,6 @@ import traceback
 
 
 from rkpylib.rkhttp import RKHTTP
-from rkpylib.rklogger import RKLogger
 
 from urllib import parse
 
@@ -139,10 +138,10 @@ def sample(globals, request, response):
     response.send_header('Content-Type', 'application/json')            
     response.end_headers()            
 
-    post_params = None
+    post_data = None
     if request.command == "POST":
         try: 
-            # post_params = parse.parse_qs(post_data)  //Can be used to parse other formats like form-data
+            # post_data = parse.parse_qs(post_data)  //Can be used to parse other formats like form-data
             
             #print(f'Content Length = {int(request.headers["Content-Length"])}')
             post_data = request.post_data
@@ -197,13 +196,9 @@ if __name__ == '__main__':
 
     ipaddr = socket.gethostname()
     port = 8282
-    
-    RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
-    
-    g = RKHTTPGlobals(debug_mode=True)
-    g.register('counter', 0)
-    
-    server = RKHTTP.server((ipaddr, port), g)
+        
+    server = RKHTTP.server((ipaddr, port), "sample_app", "/var/log/rkhttp.log")
+    server.globals.register('counter', 0)
     print (f'listening on address {ipaddr} and port {port}')
     server.serve_forever()
     

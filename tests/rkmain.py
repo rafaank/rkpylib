@@ -7,6 +7,7 @@ from test import *
 import gc
 import tracemalloc
 import pprint
+import socket
 
 
 if __name__ == '__main__':    
@@ -27,24 +28,22 @@ if __name__ == '__main__':
         ipaddr = socket.gethostname()
         port = 8282
 
-        RKLogger.initialize('rkhttp', 'rkhttp.log', RKLogger.DEBUG)
-
-        g = RKHTTPGlobals(debug_mode=True)
-        g.register('counter', 0)
     
         ''' Creating pool of Datasource and locks to enable thread-safe processing '''
         dspool = list()
         for i in range(5):
             ds = RKDataSource(server='127.0.0.1', port=27017, database='test')
             dspool.append(ds)
+
+        server = RKHTTP.server((ipaddr, port), "rkmain_testapp", "/var/log/rkhttp.log")
+        print (f'listening on address {ipaddr} and port {port}')
             
         ''' Adding datasource and lock to globally accessing variables list '''
-        g.register('dspool', dspool)
-        g.register('dspool_func', dspool_func)    
-        g.register('total_requests', 0)
+        server.globals.register('dspool', dspool)
+        server.globals.register('dspool_func', dspool_func)    
+        server.globals.register('total_requests', 0)
+        server.globals.register('counter', 0)
 
-        server = RKHTTP.server((ipaddr, port), g)
-        print (f'listening on address {ipaddr} and port {port}')
         server.serve_forever()
     finally:
         print ("Closing Down")

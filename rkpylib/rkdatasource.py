@@ -1,6 +1,5 @@
 from pymongo import MongoClient
 from threading import Lock 
-from .rklogger import RKLogger
 
 
 class RKDataSource:

@@ -2,7 +2,6 @@ import threading
 import queue
 from enum import Enum
 import time
-from .rklogger import RKLogger 
 
 class ThreadStatus(Enum):
     NOT_STARTED = 1
@@ -28,25 +27,25 @@ class RKThread(threading.Thread):
         self._on_run = on_run
         self._on_complete = on_complete
         self._on_error = on_error
-        RKLogger.debug(f'Thread Id: {self.thread_id} - Created')
+        print(f'Thread Id: {self.thread_id} - Created')
     
     def run(self):
-        RKLogger.debug(f'Thread Id: {self.thread_id} - Running')
+        print(f'Thread Id: {self.thread_id} - Running')
         while self.jobs_done < MAX_JOBS_PER_THREAD and not self.do_terminate:
             try:
                 self.status = ThreadStatus.IDLE
-                RKLogger.debug(f'Thread Id: {self.thread_id} - Idle')
+                print(f'Thread Id: {self.thread_id} - Idle')
                 try:
                     job = self.queue.get(True, 5)
                 except:
-                    RKLogger.debug(f'Thread Id: {self.thread_id} - Job Queue Empty')
+                    print(f'Thread Id: {self.thread_id} - Job Queue Empty')
                     continue
                 
                 if job is None:
-                    RKLogger.error(f'Thread Id: {self.thread_id} - Job cannot be of type None')
+                    print(f'Thread Id: {self.thread_id} - Job cannot be of type None')
                     continue
 
-                RKLogger.debug(f'Thread Id: {self.thread_id} - Job Details = {job}')
+                print(f'Thread Id: {self.thread_id} - Job Details = {job}')
 
                 try:            
                     self.status = ThreadStatus.RUNNING
@@ -60,7 +59,7 @@ class RKThread(threading.Thread):
             except queue.Empty as emp:
                 pass
             
-        RKLogger.debug(f'Thread Id: {self.thread_id} - Terminating')
+        print(f'Thread Id: {self.thread_id} - Terminating')
         self.status = ThreadStatus.TERMINATED
         mgr.unregister_thread(self.thread_id)
     
@@ -86,12 +85,12 @@ class RKThreadManager:
         
         self.threads = dict()
         self.queue =  queue.Queue(100)    
-        RKLogger.debug(f'ThreadManager - Initialized')
+        print(f'ThreadManager - Initialized')
 
 
     def start(self, thread_count = 0):
         
-        RKLogger.debug(f'ThreadManager - Starting {thread_count} worker threads')
+        print(f'ThreadManager - Starting {thread_count} worker threads')
         if not self.terminating:            
             if thread_count == 0:
                 thread_count = self._max_threads
@@ -167,7 +166,7 @@ class RKThreadManager:
             while self._active_threads != 0:
                 time.sleep(1)
             
-        RKLogger.debug(f'ThreadManager - Launching WAIT thread')
+        print(f'ThreadManager - Launching WAIT thread')
         wait_thread = threading.Thread(target = wait_for_thread_terminate, args=(), kwargs={})
         wait_thread.daemon = True
         wait_thread.start()
@@ -175,7 +174,7 @@ class RKThreadManager:
 
 
     def terminate(self):
-        RKLogger.debug(f'ThreadManager - Terminating all ({self._active_threads}) threads')
+        print(f'ThreadManager - Terminating all ({self._active_threads}) threads')
         self.terminating = True
         self._thread_lock.acquire(True, 30)
         try:
@@ -188,9 +187,7 @@ class RKThreadManager:
     
     
 if __name__ == '__main__':
-    
-    RKLogger.initialize('rkthread', 'rkthread.log')
-    
+        
     print('Testing Message %s','By RK')
     
     
