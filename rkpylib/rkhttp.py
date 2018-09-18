@@ -368,7 +368,8 @@ def RKHTTPHandlerClassFactory(globals):
                             if ctype == 'application/json':
                                 content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
                                 post_data = self.rfile.read(content_length) # <--- Gets the data itself
-                                post_data = json.loads(post_data.decode('utf-8'))
+                                if post_data:
+                                    post_data = json.loads(post_data.decode('utf-8'))
                             elif ctype.startswith('multipart/form-data'):
                                  # boundary data needs to be encoded in a binary format
                                 ctype, pdict = cgi.parse_header(self.headers['content-type'])
