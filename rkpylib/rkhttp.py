@@ -125,7 +125,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib import parse
 from socketserver import ThreadingMixIn
 from threading import Thread, Lock
-from .rkutils import *
+from .rkutils import RKDict
 
 import logging 
 import json
@@ -156,8 +156,8 @@ class RKHTTPGlobals():
  
         if self._lock.acquire(True, 10):
             try:
-                for name, value in self._variables.items():
-                    del self._variables[name]
+                for key in self._variables:
+                    del self._variables[key]
             except:
                 return False                
             finally:
@@ -225,7 +225,7 @@ class RKHTTPGlobals():
             finally:
                 self._lock.release()
         else:
-            self_logger.debug("Failed to get lock in globals.get")
+            self._logger.debug("Failed to get lock in globals.get")
             return None
 
     
@@ -444,6 +444,15 @@ def RKHTTPHandlerClassFactory(globals):
                 self.wfile.write(response_text.encode("utf-8"))
             except Exception as e:
                 self.globals._logger.exception(str(e))
+
+
+        def send_json_response(self, code, resp_json):
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            response_text = json.dumps(resp_json, default=json_util.default) 
+            self.wfile.write(response_text.encode("utf-8"))
+
             
 
     return RKHTTPRequestHandler
