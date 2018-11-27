@@ -327,6 +327,7 @@ def RKHTTPHandlerClassFactory(globals):
                 self.response.send_header = self.send_header
                 self.response.end_headers = self.end_headers
                 self.response.send_exception = self.send_exception
+                self.response.send_json_response = self.send_json_response
     
                 self.function = RKHTTP._route_function(self.request.parsed_path.path)
                 if not self.function:
@@ -503,4 +504,23 @@ class RKHTTP():
         s = RKHTTPServer(ip_port, RKHTTPHandlerClassFactory(globals))
         s.globals = globals
         return s
+
+if __name__ == "__main__":
+    @RKHTTP.route('/rkhttp.test')
+    def rkhttp_test_function(globals, request, response):
+        resp_json = dict()
+        resp_json['code'] = 200
+        resp_json['total_requests'] = globals._nof_requests
+        resp_json['data'] = dict()
+        resp_json['data']['value'] = 'RKHTTP is running'
+
+        response.send_json_response(200, resp_json)
+
+    port = 9786
+    ipaddr = '0.0.0.0'
+    server = RKHTTP.server((ipaddr, port), "rkhttp", "/var/log/rkhttp.log")
+    server.globals._config['parse_post_data'] = True
+
+    server.serve_forever()
+
 
