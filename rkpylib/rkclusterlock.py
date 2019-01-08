@@ -14,7 +14,7 @@ class RKClusterLock():
     ERROR       = 'err'
     QUIT        = 'quit'
     SEPARATOR   = ' '
-    BUF_SIZE    = 64
+    BUF_SIZE    = 128
     
     
     def __init__(self, ip, port, app_name):
