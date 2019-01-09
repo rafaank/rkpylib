@@ -103,7 +103,7 @@ class RKClusterLockServer():
         load_app_data(nodes)
         save_app_data(nodes)
         
-        self.server = RKTCPServer((host, port), RKTCPHandlerClassFactory(nodes))
+        self.server = RKTCPServer((host, port), RKTCPHandlerClassFactory(nodes, self.logger))
         
         self.ip, self.port = self.server.server_address
         
@@ -137,10 +137,11 @@ class RKSSLTCPServer(TCPServer):
     
     
 
-def RKTCPHandlerClassFactory(nodes):    
+def RKTCPHandlerClassFactory(nodes, logger):    
     class RKTCPRequestHandler(BaseRequestHandler):
         def __init__(self, *args, **kwargs):
             self.nodes = nodes
+            self.logger = logger
             super(RKTCPRequestHandler, self).__init__(*args, **kwargs)            
     
     
