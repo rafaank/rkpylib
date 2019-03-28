@@ -72,16 +72,18 @@ class RKClusterLockServer():
     
         def load_app_data(nodes):
             for filename in os.listdir(data_path):
-                f=open(data_path + "/" + filename, 'r')
-                data = ""
-                for line in f:                    
-                    data = data + line
+                
+                if os.path.isfile(data_path + "/" + filename) and filename[0:1] != ".": 
+                    f=open(data_path + "/" + filename, 'r')
+                    data = ""
+                    for line in f:                    
+                        data = data + line
 
-                node = RKClusterNode()
-                node.lock = Lock()
-                node.data = data 
-                nodes[filename] = node
-                f.close()
+                    node = RKClusterNode()
+                    node.lock = Lock()
+                    node.data = data 
+                    nodes[filename] = node
+                    f.close()
                 
             
         
@@ -105,10 +107,10 @@ class RKClusterLockServer():
         
         self.server = RKTCPServer((host, port), RKTCPHandlerClassFactory(nodes, self.logger))
         
-        self.ip, self.port = self.server.server_address
+        ip, port = self.server.server_address
         
-        extra = {'ip':self.ip, 'port':self.port}
-        self.logger.info('RKClusterLock server started...', extra)
+        extra = {'ip':ip, 'port':port}
+        self.logger.info('RKClusterLock server started...', extra=extra)
 
 
         self.server.serve_forever()
@@ -214,9 +216,10 @@ def RKTCPHandlerClassFactory(nodes, logger):
                                         node.data = data_arr[1].strip()                                       
                                     except:
                                         pass
-                                    self.logger.info(f"RELEASE request received, setting new data = {node.data}",extra=self.logger_extra)
+                                    self.logger.info(f"RELEASE request received, setting new data = {node.data}", extra=self.logger_extra)
                                     response = RKClusterLock.RELEASE + RKClusterLock.SEPARATOR + ": success\n"
                                     self.request.sendall(bytes(response, 'ascii'))
+                                    self.logger.info(f"Response sent to client", extra=self.logger_extra)
 
                                 else:
                                     self.logger.error(f"Expected {RKClusterLock.RELEASE} got {data_arr[0]}, lock released forcefully",extra=self.logger_extra)
@@ -226,12 +229,16 @@ def RKTCPHandlerClassFactory(nodes, logger):
                             except socket.timeout as to:
                                 self.logger.error("<max_release_time> timeout, lock released forcefully",extra=self.logger_extra)
                                 response = RKClusterLock.ERROR + RKClusterLock.SEPARATOR + ":<max_release_time> timeout, lock released forcefully\n"
-                                self.request.sendall(bytes(response, 'ascii'))
-                                
+                                self.request.sendall(bytes(response, 'ascii'))                                
                                 continue
+
+                            except Exception as e: 
+                                self.logger.error("Some Error" + str(e), extra=self.logger_extra)
+
                             finally:
                                 node.lock.release()
-                                self.logger.error("Lock Released",extra=self.logger_extra)
+                                self.logger.info("Lock Released",extra=self.logger_extra)
+
                         else:
                             response = RKClusterLock.FAILED + "\n"
                             self.request.sendall(bytes(response, 'ascii'))
@@ -260,7 +267,7 @@ def RKTCPHandlerClassFactory(nodes, logger):
 
                     elif data_arr[0] == RKClusterLock.QUIT:
                         self.request.close()
-                        break;
+                        break
 
                     else:
                         self.logger.error("Unexpected message",extra=self.logger_extra)
