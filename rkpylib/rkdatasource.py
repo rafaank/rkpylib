@@ -2,7 +2,7 @@ from pymongo import MongoClient
 from threading import Lock 
 
 
-class RKDataSource:
+class RKDataSource():
     "Wrapper class to connect to MongoDB, also implements a lock that can be used to thread-safe if the connection is used in a pool for reusability"
     def __init__(self, **kwargs):
         self.database = kwargs['database']

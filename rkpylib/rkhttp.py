@@ -110,6 +110,18 @@ Response Functions
             Reference to the end_headers function of BaseHTTPHandler. Adds a blank line (indicating the end
             of the HTTP headers in the response) to the headers buffer and calls flush_headers().
 
+    response.send_exception(code, message=None, exception=None):
+            Function to send exception information back to the client as a formatted JSON 
+
+
+    response.send_json_response(self, code, resp_json):
+            Function to send JSON response back to the client, this is a wrapper function which wraps the below commonly used code
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                response_text = json.dumps(resp_json, default=json_util.default) 
+                self.wfile.write(response_text.encode("utf-8"))
+
 """
 
 
@@ -122,6 +134,7 @@ import traceback
 import cgi
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.cookies import SimpleCookie as cookie 
 from urllib import parse
 from socketserver import ThreadingMixIn
 from threading import Thread, Lock
@@ -129,7 +142,11 @@ from .rkutils import RKDict
 
 import logging 
 import json
+import jwt
+
 from bson import json_util
+from uuid import uuid1
+from time import time
 
 # import importlib
 # import importlib.util
@@ -279,10 +296,14 @@ def RKHTTPHandlerClassFactory(globals):
     class RKHTTPRequestHandler(BaseHTTPRequestHandler):
         """Class RKHTTPRequestHandler derived from BaseHTTPRequestHandler, a subclass to handle all HTTP requests."""
         
+        sessioncookies = dict()
+
+
         def __init__(self, *args, **kwargs):
             """Constructor of RKHTTPRequestHandler, initializes the handler and binds the HTTPGlobals object to the handler."""
             self.globals = globals
             self.globals._nof_requests += 1
+            self.sessionidmorsel = None
             super(RKHTTPRequestHandler, self).__init__(*args, **kwargs)
       
       
@@ -290,7 +311,28 @@ def RKHTTPHandlerClassFactory(globals):
             """Destructor for the RKHTTPRequestHandler object."""
             #super(RKHTTPRequestHandler, self).__del__()
             pass
-                                                      
+
+        def _session_cookie(self, forcenew=False):
+            cookiestring = "\n".join(self.headers.get_all('Cookie',failobj=[]))
+            c = cookie()
+            c.load(cookiestring)
+
+            try:  
+                if forcenew or self.sessioncookies[c['session_id'].value]-time() > 3600:  
+                    raise ValueError('new cookie needed')  
+            except:  
+                c['session_id']=uuid1().hex  
+
+            for m in c:  
+                if m=='session_id':  
+                    self.sessioncookies[c[m].value] = time()  
+                    c[m]["httponly"] = True  
+                    c[m]["max-age"] = 3600  
+                    c[m]["expires"] = self.date_time_string(time()+3600)  
+                    self.sessionidmorsel = c[m]  
+                    break
+    
+
         def do_preprocess(self):
             """Preprocess a request by initializing all request and response parameters that can be used to do the processing of a GET or POST request."""
             err = self.globals._error
@@ -299,6 +341,11 @@ def RKHTTPHandlerClassFactory(globals):
                 self.send_exception(500, str(err), err)
                 return False
           
+            self._session_cookie()
+
+            if not (self.sessionidmorsel is None):  
+                self.send_header('Set-Cookie',self.sessionidmorsel.OutputString())
+
             try:
                 
                 self.request = RKDict()

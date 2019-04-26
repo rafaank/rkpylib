@@ -33,11 +33,26 @@ def runClient():
         time.sleep(1)
     
 
-
+"""
 print("Lets start some clients now")
+rlock = RKClusterLock('13.251.32.176', 9191,'FKAPP')
+data = ""
+resp, data = rlock.acquire(wait=True, acquire_wait_time=5, max_release_time=5)
+print(data)
+if data:
+    try:
+        int_data = int(data)
+        int_data = int_data + 1
+        data = str(int_data)
+    except:
+        data = "1"
+else:
+    data = "1"
+rlock.release(str(data))
+"""
 
 for i in range(200):
     print(f"Creating Client {i}")
     client = Thread(target=runClient)
-    client.daemon = True
+    client.daemon = False
     client.start()

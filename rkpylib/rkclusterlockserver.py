@@ -46,6 +46,20 @@ quit :
     End connection with the server\n
 '''
 
+class CLConstants() : 
+    WELCOME     = 'helo'
+    REGISTER    = 'reg'
+    ACQUIRE     = 'acq'
+    LOCKED      = 'lck'
+    RELEASE     = 'rel'
+    FAILED      = 'fail'
+    HELP        = 'help'
+    ERROR       = 'err'
+    QUIT        = 'quit'
+    SEPARATOR   = ' '
+    BUF_SIZE    = 128
+
+
 
 class RKClusterNode():
     def __init__(self):
@@ -152,7 +166,7 @@ def RKTCPHandlerClassFactory(nodes, logger):
             self.logger_extra = {'ip':clientip, 'port':port}
 
             self.logger.info("New client connection",extra=self.logger_extra)
-            response = RKClusterLock.WELCOME + f": Lock Server waiting for request \n"
+            response = CLConstants.WELCOME + f": Lock Server waiting for request \n"
             self.request.sendall(bytes(response, 'ascii'))
 
             while 1:
@@ -161,24 +175,24 @@ def RKTCPHandlerClassFactory(nodes, logger):
                     #self.request.setdefaulttimeout(5.0)
                     self.request.settimeout(None)
                     try:
-                        data = str(self.request.recv(RKClusterLock.BUF_SIZE), 'ascii').strip()
+                        data = str(self.request.recv(CLConstants.BUF_SIZE), 'ascii').strip()
                     except socket.timeout as to:
                         self.logger.error("Timeout reading from client", extra=self.logger_extra)
                         continue
                         
-                    self.logger.debug(f"Got data-{data}", extra=self.logger_extra)
+                    self.logger.debug(f"Got data packet: {data}", extra=self.logger_extra)
                     if not data:
                         self.logger.debug("Client disconnected", extra=self.logger_extra)
                         break
                     
-                    data_arr = data.split(RKClusterLock.SEPARATOR)
+                    data_arr = data.split(CLConstants.SEPARATOR)
  
-                    if data_arr[0] == RKClusterLock.ACQUIRE:
+                    if data_arr[0] == CLConstants.ACQUIRE:
                         try:
                             app_name = data_arr[1].strip()
                         except IndexError as ie:
                             self.logger.error("Missing app_name",extra=self.logger_extra)
-                            response = RKClusterLock.FAILED + "\n"
+                            response = CLConstants.FAILED + "\n"
                             self.request.sendall(bytes(response, 'ascii'))
                             continue
     
@@ -196,7 +210,7 @@ def RKTCPHandlerClassFactory(nodes, logger):
                             node = self.nodes[app_name]
                         except KeyError as ke:
                             self.logger.error("APP {app_name} not registered",extra=self.logger_extra)
-                            response = RKClusterLock.ERROR + f": APP {app_name} not registered\n"
+                            response = CLConstants.ERROR + f": APP {app_name} not registered\n"
                             self.request.sendall(bytes(response, 'ascii'))
                             continue
                         
@@ -205,30 +219,31 @@ def RKTCPHandlerClassFactory(nodes, logger):
                                 self.logger.info("Lock Acquired",extra=self.logger_extra)
                                 self.request.settimeout(max_release_time)
                                 
-                                response = RKClusterLock.LOCKED + RKClusterLock.SEPARATOR + node.data + "\n"
+                                response = CLConstants.LOCKED + CLConstants.SEPARATOR + node.data + "\n"
                                 self.request.sendall(bytes(response, 'ascii'))                            
                                 
-                                data = str(self.request.recv(RKClusterLock.BUF_SIZE), 'ascii').strip()                                
-                                data_arr = data.split(RKClusterLock.SEPARATOR, 1)
+                                data = str(self.request.recv(CLConstants.BUF_SIZE), 'ascii').strip()                
+                                data_arr = data.split(CLConstants.SEPARATOR, 1)
         
-                                if data_arr[0] == RKClusterLock.RELEASE:
+                                if data_arr[0] == CLConstants.RELEASE:
                                     try:
                                         node.data = data_arr[1].strip()                                       
                                     except:
                                         pass
                                     self.logger.info(f"RELEASE request received, setting new data = {node.data}", extra=self.logger_extra)
-                                    response = RKClusterLock.RELEASE + RKClusterLock.SEPARATOR + ": success\n"
+                                    response = CLConstants.RELEASE + CLConstants.SEPARATOR + ": success\n"
+                                    self.logger.info(f"Sending response {response} to client",extra=self.logger_extra)
                                     self.request.sendall(bytes(response, 'ascii'))
                                     self.logger.info(f"Response sent to client", extra=self.logger_extra)
 
                                 else:
-                                    self.logger.error(f"Expected {RKClusterLock.RELEASE} got {data_arr[0]}, lock released forcefully",extra=self.logger_extra)
-                                    response = RKClusterLock.ERROR + RKClusterLock.SEPARATOR + f": Expected {RKClusterLock.RELEASE}, lock released forcefully\n"
+                                    self.logger.error(f"Expected {CLConstants.RELEASE} got {data_arr[0]}, lock released forcefully",extra=self.logger_extra)
+                                    response = CLConstants.ERROR + CLConstants.SEPARATOR + f": Expected {CLConstants.RELEASE}, lock released forcefully\n"
                                     self.request.sendall(bytes(response, 'ascii'))
                                                                                                     
                             except socket.timeout as to:
                                 self.logger.error("<max_release_time> timeout, lock released forcefully",extra=self.logger_extra)
-                                response = RKClusterLock.ERROR + RKClusterLock.SEPARATOR + ":<max_release_time> timeout, lock released forcefully\n"
+                                response = CLConstants.ERROR + CLConstants.SEPARATOR + ":<max_release_time> timeout, lock released forcefully\n"
                                 self.request.sendall(bytes(response, 'ascii'))                                
                                 continue
 
@@ -240,38 +255,39 @@ def RKTCPHandlerClassFactory(nodes, logger):
                                 self.logger.info("Lock Released",extra=self.logger_extra)
 
                         else:
-                            response = RKClusterLock.FAILED + "\n"
+                            # Failed to acquire lock
+                            response = CLConstants.FAILED + "\n"
                             self.request.sendall(bytes(response, 'ascii'))
                             
-                    elif data_arr[0] == RKClusterLock.REGISTER:
+                    elif data_arr[0] == CLConstants.REGISTER:
                         try:
                             app_name = data_arr[1].strip()
                             node = RKClusterNode()
                             node.lock = Lock()
                             self.nodes[app_name] = node
-                            response = RKClusterLock.REGISTER + RKClusterLock.SEPARATOR + ": success\n"
+                            response = CLConstants.REGISTER + CLConstants.SEPARATOR + ": success\n"
                             self.request.sendall(bytes(response, 'ascii'))
                         except:
                             self.logger.error("Missing app_name",extra=self.logger_extra)
-                            response = RKClusterLock.ERROR + RKClusterLock.SEPARATOR + "app_name invalid or missing: \n"
+                            response = CLConstants.ERROR + CLConstants.SEPARATOR + "app_name invalid or missing: \n"
                             self.request.sendall(bytes(response, 'ascii'))
 
-                    elif data_arr[0] == RKClusterLock.HELP:
-                        response = RKClusterLock.HELP + RKClusterLock.SEPARATOR + help_str
+                    elif data_arr[0] == CLConstants.HELP:
+                        response = CLConstants.HELP + CLConstants.SEPARATOR + help_str
                         self.request.sendall(bytes(response, 'ascii'))
 
-                    elif data_arr[0] == RKClusterLock.RELEASE:
+                    elif data_arr[0] == CLConstants.RELEASE:
                         self.logger.error("No active lock to be released",extra=self.logger_extra)
-                        response = RKClusterLock.ERROR + ": No active lock to be released\n"
+                        response = CLConstants.ERROR + ": No active lock to be released\n"
                         self.request.sendall(bytes(response, 'ascii'))
 
-                    elif data_arr[0] == RKClusterLock.QUIT:
+                    elif data_arr[0] == CLConstants.QUIT:
                         self.request.close()
                         break
 
                     else:
                         self.logger.error("Unexpected message",extra=self.logger_extra)
-                        response = RKClusterLock.ERROR + ": Unexpected message\n"
+                        response = CLConstants.ERROR + ": Unexpected message\n"
                         self.request.sendall(bytes(response, 'ascii'))
                         
                             
